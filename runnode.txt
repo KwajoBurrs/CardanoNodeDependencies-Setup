@@ -1,0 +1,24 @@
+ cardano-node run \
+   --topology testnet-topology.json \
+   --database-path path/to/db \
+   --socket-path path/to/db/node.socket \
+   --host-addr 10.0.0.213 \
+   --port 3001 \
+   --config testnet-config.json
+
+cardano-node run \
+--config ~/cardano-src/cardano-node/testnet-config.json \
+--database-path $HOME/cardano/db/ \
+--socket-path $HOME/cardano/db/node.socket \
+--host-addr 10.0.0.135 \
+--port 3001 \
+--topology ~/cardano-src/cardano-node/testnet-topology.json
+
+
+cardano-node run \
+--config $HOME/cardano/testnet-config.json \
+--database-path $HOME/cardano/db/ \
+--socket-path $HOME/cardano/db/node.socket \
+--host-addr 10.0.0.135 \
+--port 3001 \
+--topology $HOME/cardano/testnet-topology.json

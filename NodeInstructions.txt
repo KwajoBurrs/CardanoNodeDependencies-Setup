@@ -1,0 +1,199 @@
+operating system dependencies:
+
+	sudo apt-get update -y && sudo apt-get upgrade -y
+	sudo apt-get install automake build-essential pkg-config libffi-dev libgmp-dev libssl-dev libtinfo-dev libsystemd-dev zlib1g-dev make g++ tmux git jq wget libncursesw5 libtool autoconf -y
+	sudo apt install curl
+
+Install GHC and CABAL
+
+	curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+
+Please follow the instructions and provide the necessary input to the installer.
+
+Do you want ghcup to automatically add the required PATH variable to "/home/ubuntu/.bashrc"? - (P or enter)
+
+Do you want to install haskell-language-server (HLS)? - (N or enter)
+
+Do you want to install stack? - (N or enter)
+
+Press ENTER to proceed or ctrl-c to abort. (enter)
+
+Once complete, you should have ghc and cabal installed to your system.
+
+You can check if ghcup has been installed correctly by typing ghcup --version into the terminal. You should see something similar to the following:
+
+	The GHCup Haskell installer, version v0.1.17.4
+
+install an updated verion of GHC
+
+	ghcup install ghc 8.10.7
+	ghcup set ghc 8.10.7
+
+install correct version of Cabal
+
+	ghcup install cabal 3.4.0.0
+	ghcup set cabal 3.4.0.0
+
+check cabal version:
+
+	cabal --version
+
+Let's create a working directory to store the source-code and builds for the components.
+
+	mkdir -p $HOME/cardano-src
+	cd $HOME/cardano-src
+
+Next, we will download, compile and install libsodium.
+
+	git clone https://github.com/input-output-hk/libsodium
+	cd libsodium
+	git checkout 66f017f1
+	./autogen.sh
+	./configure
+	make
+	sudo make install
+
+Then we will add the following environment variables to your shell profile. $HOME/.bashrc
+Add the following to the bottom of your shell profile/config file so that the compiler can be aware that libsodium is installed on your system:
+
+	{ export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH" }
+	{ export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH" }
+
+Once saved, we will then reload your shell profile to use the new variables. We can do that by typing: 
+
+	source $HOME/.bashrc
+
+Now we are ready to download, compile and install cardano-node and cardano-cli. But first, we have to make sure we are back at the root of our working directory
+
+	cd $HOME/cardano-src
+
+Download the cardano-node repository:
+
+	git clone https://github.com/input-output-hk/cardano-node.git
+	cd cardano-node
+	git fetch --all --recurse-submodules --tags
+
+Switch the repository to the latest tagged commit:
+
+	git checkout $(curl -s https://api.github.com/repos/input-output-hk/cardano-node/releases/latest | jq -r .tag_name)
+
+Configuring the build options
+We explicitly use the ghc version that we installed earlier. This avoids defaulting to a system version of ghc that might be newer or older than the one you have installed.
+
+	cabal configure --with-compiler=ghc-8.10.7
+
+
+
+
+
+
+If you are running non x86/x64 platform (eg. ARM) please install and configure LLVM with:
+
+	sudo apt install llvm-9
+	sudo apt install clang-9 libnuma-dev
+	sudo ln -s /usr/bin/llvm-config-9 /usr/bin/llvm-config
+	sudo ln -s /usr/bin/opt-9 /usr/bin/opt
+	sudo ln -s /usr/bin/llc-9 /usr/bin/llc
+	sudo ln -s /usr/bin/clang-9 /usr/bin/clang
+
+
+
+
+
+
+Building and installing the node
+We can now build the Haskell-based cardano-node to produce executable binaries.
+
+	cabal build cardano-node cardano-cli
+
+optional if issues arise:
+
+	cabal clean
+	cabal update           more help here if next steps dont work (copying binaries):        https://cardano-foundation.gitbook.io/stake-pool-course/stake-pool-guide/getting-started/install-node
+	cabal build all
+
+
+Install the newly built node and CLI commands to the $HOME/.local/bin directory:
+
+	mkdir -p $HOME/.local/bin
+	cp -p "$(./scripts/bin-path.sh cardano-node)" $HOME/.local/bin/
+	cp -p "$(./scripts/bin-path.sh cardano-cli)" $HOME/.local/bin/
+
+
+We have to add this line below our shell profile so that the shell/terminal can recognize that cardano-node and cardano-cli are global commands.
+
+## this step may need to be done before hand iff issues arise with copying files(im not sure)##
+
+to the ~/.bashrc file add:
+
+
+	{  export PATH="$HOME/.local/bin/:$PATH"  }
+
+
+Check the version that has been installed:
+
+
+	cardano-cli --version
+	cardano-node --version
+
+
+
+
+
+Configuration Files
+The cardano-node application requires at least four configuration files to run as of writing this article
+Main Config: It contains general node settings such as logging and versioning. It also points to the Byron Genesis and the Shelly Genesis file.
+
+Byron Genesis: It contains the initial protocol parameters and instructs the cardano-node on how to bootstrap the Byron Era of the Cardano blockchain
+
+Shelly Genesis: It contains the initial protocol parameters and instructs the cardano-node on how to bootstrap the Shelly Era of the Cardano blockchain.
+
+Alonzo Genesis: It contains the initial protocol parameters and instructs the cardano-node on how to bootstrap the Shelly Era of the Cardano blockchain.
+
+Topology: It contains the list of network peers (IP Address and Port of other nodes running the blockchain network) that your node will connect to.
+
+
+
+You can download the current Cardano blockchain network configuration files here:
+
+
+	curl -O -J https://hydra.iohk.io/build/7654130/download/1/testnet-topology.json
+	curl -O -J https://hydra.iohk.io/build/7654130/download/1/testnet-shelley-genesis.json
+	curl -O -J https://hydra.iohk.io/build/7654130/download/1/testnet-config.json
+	curl -O -J https://hydra.iohk.io/build/7654130/download/1/testnet-byron-genesis.json
+	curl -O -J https://hydra.iohk.io/build/7654130/download/1/testnet-alonzo-genesis.json
+
+
+
+To run cardano-node you enter something like this into the terminal:
+
+
+example:
+
+		 cardano-node run \
+	   --topology path/to/mainnet-topology.json \
+	   --database-path path/to/db \
+	   --socket-path path/to/db/node.socket \
+	   --host-addr x.x.x.x \
+	   --port 3001 \
+	   --config path/to/mainnet-config.json
+
+
+create a database directory like this:
+
+
+	mkdir -p $HOME/cardano/db
+
+This is where the config files will be stored and db files
+
+
+copy the previously downloaded files into the "~/cardano" directory:
+
+
+	cp -v ~/cardano-src/cardano-node/testnet-config.json ~/cardano/
+	cp -v ~/cardano-src/cardano-node/testnet-byron-genesis.json ~/cardano/
+	cp -v ~/cardano-src/cardano-node/testnet-shelley-genesis.json ~/cardano/
+	cp -v ~/cardano-src/cardano-node/testnet-alonzo-genesis.json ~/cardano/
+	cp -v ~/cardano-src/cardano-node/testnet-topology.json ~/cardano/
+
+
