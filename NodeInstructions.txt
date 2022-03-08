@@ -1,3 +1,7 @@
+**NODE SETUP**
+
+
+
 operating system dependencies:
 
 	sudo apt-get update -y && sudo apt-get upgrade -y
